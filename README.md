@@ -32,3 +32,6 @@ Add a dependency entry to your `fabric.mod.json` file:
     }
 }
 ```
+
+Fabric Language Scala accepts both classes and objects
+as entrypoints.
