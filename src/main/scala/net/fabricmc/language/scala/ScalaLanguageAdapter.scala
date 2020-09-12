@@ -22,16 +22,26 @@ import net.fabricmc.loader.launch.common.FabricLauncherBase
 
 class ScalaLanguageAdapter extends LanguageAdapter {
 
-  override def create[T](modContainer: ModContainer, value: String, aClass: Class[T]): T = {
+  override def create[T](mod: ModContainer, value: String, clazz: Class[T]): T = {
+    val classForName = (name: String) => Class.forName(name, true, FabricLauncherBase.getLauncher.getTargetClassLoader)
+    val getMainClass = () => classForName(value)
+      .getDeclaredConstructor()
+      .newInstance()
+      .asInstanceOf[T]
+
+    // two 'try's?? bear with me
+    // inner try is for object class not found
+    // outer try is for casting exception for both object and class
     try {
-      val classForName = (name: String) => Class.forName(name, true, FabricLauncherBase.getLauncher.getTargetClassLoader)
-      val objectClass = classForName(value + "$").getField("MODULE$").get()
-      objectClass match {
-        case objectModInitializer: T => objectModInitializer
-        case _ => classForName(value)
-          .getDeclaredConstructor()
-          .newInstance()
-          .asInstanceOf[T]
+      try {
+        val instance = classForName(value + "$")
+          .getField("MODULE$")
+          .get()
+        // object is most likely a companion object
+        if (!clazz.isInstance(instance)) getMainClass()
+        else instance.asInstanceOf[T]
+      } catch {
+        case _: ClassNotFoundException => getMainClass()
       }
     } catch {
       case cce: ClassCastException => throw new LanguageAdapterException(cce)
